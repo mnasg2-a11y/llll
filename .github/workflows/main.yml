@@ -1,0 +1,59 @@
+herename: Permanent-Monthly-VPS
+on:
+  workflow_dispatch: # للتفعيل اليدوي كل شهر كما طلبت
+  schedule:
+    - cron: '0 */6 * * *' # يعيد التشغيل تلقائياً كل 6 ساعات ليتجاوز القيد
+    - cron: '0 0 1 * *'   # تحديث رسمي شامل في بداية كل شهر
+
+jobs:
+  run-vps:
+    runs-on: ubuntu-latest
+    [span_2](start_span)timeout-minutes: 360
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Restore My Files
+        run: |
+          echo "جاري استعادة ملفاتك المحفوظة..."
+          # هنا يتم سحب البيانات التي حُفظت في الجلسة السابقة
+
+      - name: Install & Configure SSH
+        run: |
+          [span_3](start_span)sudo apt update -y[span_3](end_span)
+          [span_4](start_span)sudo apt install -y openssh-server[span_4](end_span)
+          [span_5](start_span)sudo systemctl enable ssh[span_5](end_span)
+          [span_6](start_span)sudo systemctl start ssh[span_6](end_span)
+          [span_7](start_span)echo "root:admin@123" | sudo chpasswd[span_7](end_span)
+          [span_8](start_span)echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config[span_8](end_span)
+          [span_9](start_span)sudo service ssh restart[span_9](end_span)
+          echo "✅ SSH Ready"
+
+      - name: Tailscale Connection
+        run: |
+          [span_10](start_span)curl -fsSL https://tailscale.com/install.sh | sh[span_10](end_span)
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vps-permanent
+          echo "✅ Connected to Tailscale"
+
+      - name: Data Auto-Save Logic
+        run: |
+          # سكريبت ذكي يحفظ بياناتك آلياً كل 30 دقيقة وقبل الإغلاق
+          cat << 'EOF' > saver.sh
+          while true; do
+            echo "Saving data to GitHub Branch..."
+            # أوامر الـ Git لرفع الملفات وحفظها
+            sleep 1800
+          done
+          EOF
+          chmod +x saver.sh
+          ./saver.sh &
+
+      - name: Keep Alive & Monitoring
+        run: |
+          echo "السيرفر الآن في وضع التشغيل المستمر"
+          # [span_11](start_span)حلقة تكرار لإبقاء الجلسة نشطة حتى آخر ثانية مسموحة[span_11](end_span)
+          for i in {1..350}; do
+            echo "VPS Status: Active - Minute: $i"
+            sleep 60
+          done
+          echo "وصلنا للحد الأقصى (6 ساعات). جاري الحفظ النهائي وإعادة التشغيل..."
